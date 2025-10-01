@@ -2,7 +2,7 @@ name: Mirror ARNS CSVs
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # every 15 min; adjust as needed
+    - cron: "0 */6 * * *"   # every 6 hours (adjust as needed)
   workflow_dispatch:
 
 jobs:
@@ -18,9 +18,16 @@ jobs:
           set -e
           mkdir -p public
           BASE="https://network-art-test.arweave.net"
-          curl -fsSL "$BASE/collectors_cards.csv" -o public/collectors_cards.csv
-          curl -fsSL "$BASE/cards_metadata.csv"   -o public/cards_metadata.csv
-          curl -fsSL "$BASE/network_profiles.csv" -o public/network_profiles.csv
+
+          # Fetch to temp, then replace only on success (so a bad fetch never wipes a good file)
+          curl -fsS --retry 3 --retry-delay 2 "$BASE/collectors_cards.csv" -o public/collectors_cards.csv.tmp
+          mv public/collectors_cards.csv.tmp public/collectors_cards.csv
+
+          curl -fsS --retry 3 --retry-delay 2 "$BASE/cards_metadata.csv" -o public/cards_metadata.csv.tmp
+          mv public/cards_metadata.csv.tmp public/cards_metadata.csv
+
+          curl -fsS --retry 3 --retry-delay 2 "$BASE/network_profiles.csv" -o public/network_profiles.csv.tmp
+          mv public/network_profiles.csv.tmp public/network_profiles.csv
 
       - name: Commit if changed
         run: |
