@@ -1,9 +1,9 @@
-name: Mirror ARNS manifest
+name: Mirror ARNS CSVs
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # every 15 minutes
-  workflow_dispatch:         # allow manual runs
+    - cron: "*/15 * * * *"   # every 15 min; adjust as needed
+  workflow_dispatch:
 
 jobs:
   mirror:
@@ -13,31 +13,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prepare folder
+      - name: Fetch CSVs from ARNS base
         run: |
           set -e
           mkdir -p public
-
-      - name: Fetch manifest from ARNS
-        run: |
-          set -e
-          curl -fsSL https://network-art-test.arweave.net/manifest.json -o public/manifest.json
-
-      - name: Validate manifest
-        run: |
-          sudo apt-get update && sudo apt-get install -y jq
-          jq -e '.paths' public/manifest.json >/dev/null
+          BASE="https://network-art-test.arweave.net"
+          curl -fsSL "$BASE/collectors_cards.csv" -o public/collectors_cards.csv
+          curl -fsSL "$BASE/cards_metadata.csv"   -o public/cards_metadata.csv
+          curl -fsSL "$BASE/network_profiles.csv" -o public/network_profiles.csv
 
       - name: Commit if changed
         run: |
           set -e
-          if [[ -n "$(git status --porcelain public/manifest.json)" ]]; then
+          if [[ -n "$(git status --porcelain public)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add public/manifest.json
-            git commit -m "Mirror manifest $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            git add public
+            git commit -m "Mirror CSVs $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           else
-            echo "No changes to manifest"
+            echo "No changes"
           fi
 
       - name: Publish to gh-pages
