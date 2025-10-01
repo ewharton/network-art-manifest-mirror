@@ -1,0 +1,68 @@
+name: Mirror ARNS CSVs to GitHub Pages
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/static.yml"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch CSVs from ARNS base with retry; keep prior on failure
+        run: |
+          set -e
+          mkdir -p public
+          BASE="https://network-art-test.arweave.net"
+          fetch_one () {
+            NAME="$1"
+            URL="$BASE/$NAME"
+            echo "Fetching $URL"
+            curl -fsSL --retry 3 --retry-delay 5 --max-time 90 "$URL" -o "public/$NAME.tmp" || true
+            if [ -s "public/$NAME.tmp" ]; then
+              mv "public/$NAME.tmp" "public/$NAME"
+              echo "Updated public/$NAME"
+            else
+              rm -f "public/$NAME.tmp"
+              if [ -s "public/$NAME" ]; then
+                echo "Keeping existing public/$NAME (fetch failed)"
+              else
+                echo "No existing public/$NAME and fetch failed. Exiting."
+                exit 22
+              fi
+            fi
+          }
+          fetch_one collectors_cards.csv
+          fetch_one cards_metadata.csv
+          fetch_one network_profiles.csv
+          echo "Mirror updated at $(date -u)" > public/index.html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
