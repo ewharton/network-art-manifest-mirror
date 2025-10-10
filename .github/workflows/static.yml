@@ -31,7 +31,7 @@ jobs:
         run: |
           set -e
           mkdir -p public
-          BASE="https://network-art-test.arweave.net"
+          BASE="https://network-art-test2.arweave.net"
           fetch_one () {
             NAME="$1"
             URL="$BASE/$NAME"
@@ -51,7 +51,7 @@ jobs:
             fi
           }
           fetch_one collectors_cards.csv
-          fetch_one cards_metadata.csv
+          fetch_one cards_to_artists.csv
           fetch_one network_profiles.csv
           echo "Mirror updated at $(date -u)" > public/index.html
 
